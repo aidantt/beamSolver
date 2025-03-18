@@ -21,6 +21,7 @@
 # given a .txt file with a designated syntax, extract all inputs
 
 # import necessary libraries
+import numpy as np # for math, matrix operations, inverse matrices
 import argparse # for command line arguments
 
 # Intro program
