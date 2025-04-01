@@ -197,8 +197,24 @@ def getElementK(E, I, L) -> np.ndarray:
     return localK
 
 # given zero dofs, apply kinematic constraints to the global stiffness matrix
-def imposeConstraints():
-    return None
+def imposeConstraints(globalK : np.ndarray, 
+                      zeroDofList : list[int]) -> np.ndarray:
+    # constrain the global stiffness matrix by applying the penalty method
+    # using the zeroed DoFs
+    logOut.info("Applying constraints to global stiffness matrix...")
+
+    constrainedK = globalK.copy()
+    zeroDofs = np.array(zeroDofList) - 1 # convert to 0-indexed
+    for dof in zeroDofs:
+        # impose the constraint by adding a large value to the diagonal
+        # of the global stiffness matrix
+        # this effectively makes the matrix singular, and thus
+        # the corresponding DoF is constrained to zero
+        constrainedK[dof, dof] += 1e30
+    
+    # log global K after constraints
+    logOut.info(f"Constrained Global Stiffness Matrix:\n{constrainedK}\n")
+    return constrainedK
 
 # given beam parameters, geometry, connectivity, assemble the global stiffness
 # matrix from the local stiffness matrices of each element
@@ -258,6 +274,49 @@ def assembleGlobalStiffnessMatrix(numNodes : int,
     logOut.info(f"Global Stiffness Matrix:\n{globalK}\n")
     return globalK
 
+def assembleLoadVector(numNodes : int, 
+                       loadCoord : list[tuple[int, float]]) -> np.ndarray:
+    # given point load info, assemble the global load vector
+    
+    dofSize = numNodes * 2
+    globalF = np.zeros((dofSize, 1))
+
+    for load in loadCoord:
+        # load is a tuple of (dof, loadMagnitude)
+        dof = load[0] - 1 # convert to 0-indexed
+        loadMagnitude = load[1]
+
+        # assign the load magnitude to the respective dof
+        # in the global load vector
+        globalF[dof] = loadMagnitude
+
+    # log the global load vector
+    logOut.info(f"Global Load Vector:\n{globalF}\n")
+    return globalF
+
+def solveBeam(constrainedK : np.ndarray, 
+              globalF : np.ndarray) -> np.ndarray:
+    # given the global stiffness matrix and load vector,
+    # solve for the deflection field
+    logOut.info("Solving for Beam Degrees of Freedom...")
+
+    # use numpy to solve the system of equations
+    dofVector = np.linalg.solve(constrainedK, globalF)
+
+    # log the deflection field
+    logOut.info(f"DoF Vector:\n{dofVector}\n")
+    return dofVector
+
+def presentResults(dofVector : np.ndarray, nodeCoord : dict[int, float]) -> None:
+    logOut.info("Presenting results...")
+
+    for node, position in nodeCoord.items():
+        logOut.info(f"Displacement at Node {node} (x = {position}):")
+        deflection = float(dofVector[2*(node-1)])
+        rotation = float(dofVector[2*(node-1)+1])
+        logOut.info(f"\tDeflection: {deflection:.6g}")
+        logOut.info(f"\tRotation: {rotation:.6g}\n")
+
 # main function
 if __name__ == "__main__":
     # intro
@@ -312,4 +371,22 @@ if __name__ == "__main__":
     logOut.info(f"2nd Moment of Area for Rectangular Cross-Section: {I:.6g}\n")
 
     # now, assemble the global stiffness matrix
-    globalK = assembleGlobalStiffnessMatrix(numNodes, connectivityList, nodeCoord, youngsModulus, I)
+    globalK = assembleGlobalStiffnessMatrix(numNodes, connectivityList, 
+                                            nodeCoord, youngsModulus, I)
+    
+    # impose constraints on the global stiffness matrix
+    constrainedK = imposeConstraints(globalK, zeroDofList)
+
+    # get the global load vector
+    globalF = assembleLoadVector(numNodes, loadCoord)
+
+    # with K and F_load defined, solve for the dof vector
+    dofVector = solveBeam(constrainedK, globalF)
+
+    # present results with formatting and consideration for numerical zeros
+    presentResults(dofVector, nodeCoord)
+    logOut.info("Exiting...\n")
+    # close the logger
+    for handler in logOut.handlers:
+        handler.close()
+        logOut.removeHandler(handler)
