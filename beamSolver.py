@@ -171,8 +171,31 @@ def readLoads(loads : list[str]) -> tuple[int, list[tuple[int, float]]]:
     # return the extracted values
     return numPointLoads, loadCoord
 
+# given nodes and connectivity, calculate DOFs for the element (assembly vector)
+def getElementDOF():
+    return None
+
+# given nodes and connectivity, calculate the local stiffness matrix
+def getElementK():
+    return None
+
+# given zero dofs, apply kinematic constraints to the global stiffness matrix
+def imposeConstraints():
+    return None
+
+# given beam parameters, geometry, connectivity, assemble the global stiffness
+# matrix from the local stiffness matrices of each element
+def assembleGlobalStiffnessMatrix():
+    # in order to calculate the global stiffness matrix, loop over each element
+    # and calculate the local stiffness matrix.
+    # then, after calculation of each local stiffness matrix, append values
+    # to the global matrix, utilizing the penalty method along the diagnonal
+    # to account for the constraints where applicable.
+    return None
+
 # main function
 if __name__ == "__main__":
+    # intro
     splash()
     
     # setup a logger to write to console and output file simultaneously
