@@ -63,7 +63,9 @@ def setupLogging() -> logging.Logger:
     return logger
 
 # read, define, return mesh data
-def readMesh(meshData : list[str], connectivity : list[str]) -> tuple[int, int, dict[int, float], list[tuple[int, int, int]]]:
+def readMesh(meshData : list[str], 
+             connectivity : list[str]
+            ) -> tuple[int, int, dict[int, float], list[tuple[int, int, int]]]:
     logOut.info("Parsing mesh data...")
 
     # strip each line
@@ -187,8 +189,12 @@ def getElementDOF(node1 : int, node2 : int) -> list[int]:
     return globalIndex
 
 # given nodes and connectivity, calculate the local stiffness matrix
-def getElementK():
-    return None
+def getElementK(E, I, L) -> np.ndarray:
+    localK = (E*I) * np.array([[12/L**3, 6/L**2, -12/L**3, 6/L**2],
+                               [6/L**2, 4/L, -6/L**2, 2/L],
+                               [-12/L**3, -6/L**2, 12/L**3, -6/L**2],
+                               [6/L**2, 2/L, -6/L**2, 4/L]])
+    return localK
 
 # given zero dofs, apply kinematic constraints to the global stiffness matrix
 def imposeConstraints():
@@ -196,7 +202,11 @@ def imposeConstraints():
 
 # given beam parameters, geometry, connectivity, assemble the global stiffness
 # matrix from the local stiffness matrices of each element
-def assembleGlobalStiffnessMatrix(numNodes : int, connectivityList : list[tuple[int, int, int]]) -> np.ndarray:
+def assembleGlobalStiffnessMatrix(numNodes : int, 
+                                  connectivityList : list[tuple[int, int, int]], 
+                                  nodeCoord : dict[int, float],
+                                  youngsModulus : float,
+                                  inertia : float) -> np.ndarray:
     # in order to calculate the global stiffness matrix, loop over each element
     # and calculate the local stiffness matrix.
     # then, after calculation of each local stiffness matrix, append values
@@ -225,8 +235,27 @@ def assembleGlobalStiffnessMatrix(numNodes : int, connectivityList : list[tuple[
         # pass these nodes to getElementDOF() to get the global DoFs from the
         # local element nodes
         assemblyVector = getElementDOF(node1, node2)
-        logOut.info(f"\tElement {element[0]}: Global DoFs: {assemblyVector}")
+        logOut.info(f"\tElement {element[0]} Assembly Vector: {assemblyVector}")
 
+        # get the length of the current element via the node coordinates
+        length = np.abs(nodeCoord[node2] - nodeCoord[node1])
+        logOut.info(f"\tElement {element[0]} Length: {length}")
+
+        # now assemble local stiffness matrix
+        localK = getElementK(youngsModulus, inertia, length)
+        logOut.info(f"\tElement {element[0]} Local Stiffness Matrix:\n{localK}\n")
+
+        # use localK in conjunction with the assembly vector to build
+        # the global stiffness matrix.
+        # np.ix_() allows for extraction and operation on submatrices
+        # given a list of indices to act on.
+        # effectively, this statement selectively extracts the rows and columns
+        # of the global stiffness submatrix corresponding to the local element,
+        # then appends the local values to the global matrix.
+        globalK[np.ix_(assemblyVector, assemblyVector)] += localK
+
+    # log the global stiffness matrix
+    logOut.info(f"Global Stiffness Matrix:\n{globalK}\n")
     return globalK
 
 # main function
@@ -280,4 +309,7 @@ if __name__ == "__main__":
     # since we assume rectangular cross-section and constant cross-section
     # across the beam, this value is constant and used for each element
     I = (width*height**3)/12
-    logOut.info(f"2nd Moment of Area for Rectangular Cross-Section: {I}\n")
+    logOut.info(f"2nd Moment of Area for Rectangular Cross-Section: {I:.6g}\n")
+
+    # now, assemble the global stiffness matrix
+    globalK = assembleGlobalStiffnessMatrix(numNodes, connectivityList, nodeCoord, youngsModulus, I)
