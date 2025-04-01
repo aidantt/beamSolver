@@ -27,3 +27,5 @@ Parsing point loads...
 	Number of point loads: 1
 	Point load coordinates (by DoF): [(7, 5.0)]
 
+2nd Moment of Area for Rectangular Cross-Section: 0.10003005079166666
+

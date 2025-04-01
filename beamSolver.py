@@ -96,8 +96,8 @@ def readMesh(meshData : list[str], connectivity : list[str]) -> tuple[int, int, 
     logOut.info(f"\tNumber of nodes: {numNodes}")
     logOut.info(f"\tNumber of elements: {numElements}")
     logOut.info(f"\tNode coordinates:")
-    for node in nodeCoord:
-        logOut.info(f"\t\tNode {node[0]} at position {node[1]}")
+    for node, coordinate in nodeCoord.items():
+        logOut.info(f"\t\tNode {node} at position {coordinate}")
     logOut.info(f"\tElement connectivity:")
     for element in connectivityList:
         logOut.info(f"\t\t{element[0]} \t {element[1]} \t {element[2]}")
@@ -172,8 +172,19 @@ def readLoads(loads : list[str]) -> tuple[int, list[tuple[int, float]]]:
     return numPointLoads, loadCoord
 
 # given nodes and connectivity, calculate DOFs for the element (assembly vector)
-def getElementDOF():
-    return None
+def getElementDOF(node1 : int, node2 : int) -> list[int]:
+    # given connectivity of the element, return assembly vector,
+    # i.e. global DoFs corresponding to the local element nodes
+
+    # under the convention that each node has 2 DoFs (translation and rotation),
+    # global DoFs are a simple linear mapping of the local node numbers.
+    # convert nodes to their index in the node graph, then map to global DoFs
+    localIndex = [node1-1, node2-1]
+    globalIndex = [[2*i, 2*i+1] for i in localIndex]
+    # flatten the list of lists to a single list
+    globalIndex = [item for sublist in globalIndex for item in sublist]
+
+    return globalIndex
 
 # given nodes and connectivity, calculate the local stiffness matrix
 def getElementK():
@@ -185,13 +196,38 @@ def imposeConstraints():
 
 # given beam parameters, geometry, connectivity, assemble the global stiffness
 # matrix from the local stiffness matrices of each element
-def assembleGlobalStiffnessMatrix() -> np.ndarray:
+def assembleGlobalStiffnessMatrix(numNodes : int, connectivityList : list[tuple[int, int, int]]) -> np.ndarray:
     # in order to calculate the global stiffness matrix, loop over each element
     # and calculate the local stiffness matrix.
     # then, after calculation of each local stiffness matrix, append values
     # to the global matrix, utilizing the penalty method along the diagnonal
     # to account for the constraints where applicable.
-    return None
+
+    logOut.info("Assembling global stiffness matrix...")
+
+    # initialize the global stiffness matrix as a square matrix with dimensions
+    # equal to numnodes * 2 (translation and rotation DoFs for each node)
+    dofSize = numNodes * 2
+    globalK = np.zeros((dofSize, dofSize))
+
+    # from the above definition, the DoFs of the beam are indexed
+    # from 0 -> 2*numNodes-1
+
+    # loop over each element via the connectivity
+    for element in connectivityList:
+        # element is a tuple of (elementNum, node1, node2).
+        # under this convention, node1 is the first node in the element
+        # and node2 is the second node in the element.
+        # extract the nodes from the tuple
+        node1 = element[1]
+        node2 = element[2]
+
+        # pass these nodes to getElementDOF() to get the global DoFs from the
+        # local element nodes
+        assemblyVector = getElementDOF(node1, node2)
+        logOut.info(f"\tElement {element[0]}: Global DoFs: {assemblyVector}")
+
+    return globalK
 
 # main function
 if __name__ == "__main__":
