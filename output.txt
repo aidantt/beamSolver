@@ -1,0 +1,29 @@
+Reading input file: input.txt
+
+Parsing mesh data...
+	Number of nodes: 4
+	Number of elements: 3
+	Node coordinates:
+		Node 1 at position 10.0
+		Node 2 at position 30.0
+		Node 3 at position 20.0
+		Node 4 at position 0.0
+	Element connectivity:
+		1 	 4 	 1
+		2 	 1 	 3
+		3 	 3 	 2
+
+
+Parsing material properties...
+	Young's Modulus: 10000000.0
+	Height: 1.339
+	Width: 0.5
+
+Parsing constraints...
+	Number of constraints: 4
+	Zeroed DOFs: [1, 5, 3, 4]
+
+Parsing point loads...
+	Number of point loads: 1
+	Point load coordinates (by DoF): [(7, 5.0)]
+

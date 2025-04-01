@@ -23,6 +23,7 @@
 # import necessary libraries
 import numpy as np # for math, matrix operations, inverse matrices
 import argparse # for command line arguments
+import logging # for logging functionality
 
 # Intro program
 def splash() -> None:
@@ -37,9 +38,33 @@ def readCLI() -> argparse.Namespace:
     parser.add_argument("-i", "--input", type=str, nargs='?', help="Input .txt file with designated syntax.")
     return parser.parse_args()
 
+# setup logging functionality
+def setupLogging() -> logging.Logger:
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    # set format
+    formatter = logging.Formatter('%(message)s')
+
+    # file handler
+    file_handler = logging.FileHandler("output.txt", mode='w')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(formatter)
+
+    # console handler
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
+
+    # add handlers to logger
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    return logger
+
 # read, define, return mesh data
 def readMesh(meshData : list[str], connectivity : list[str]) -> tuple[int, int, list[tuple[int, float]], list[tuple[int, int, int]]]:
-    print("Parsing mesh data...")
+    logOut.info("Parsing mesh data...")
 
     # strip each line
     meshData = [line.strip() for line in meshData]
@@ -67,23 +92,22 @@ def readMesh(meshData : list[str], connectivity : list[str]) -> tuple[int, int, 
         node2 = int(element[2])
         connectivityList.append((elementNum, node1, node2))
 
-    # print the extracted values
-    print(f"\tNumber of nodes: {numNodes}")
-    print(f"\tNumber of elements: {numElements}")
-    print(f"\tNode coordinates:")
+    # print the extracted values to log
+    logOut.info(f"\tNumber of nodes: {numNodes}")
+    logOut.info(f"\tNumber of elements: {numElements}")
+    logOut.info(f"\tNode coordinates:")
     for node in nodeCoord:
-        print(f"\t\tNode {node[0]} at position {node[1]}")
-    print(f"\tElement connectivity:")
+        logOut.info(f"\t\tNode {node[0]} at position {node[1]}")
+    logOut.info(f"\tElement connectivity:")
     for element in connectivityList:
-        print(f"\t\t{element[0]} \t {element[1]} \t {element[2]}")
-    print()
-
+        logOut.info(f"\t\t{element[0]} \t {element[1]} \t {element[2]}")
+    logOut.info("\n")
     # return the extracted values
     return numNodes, numElements, nodeCoord, connectivityList
 
 # read and return material properties
 def readProperties(properties : list[str]) -> tuple[float, float, float]:
-    print("Parsing material properties...")
+    logOut.info("Parsing material properties...")
 
     # per syntax, properties is always a single line
     # strip each line
@@ -96,17 +120,17 @@ def readProperties(properties : list[str]) -> tuple[float, float, float]:
     height = float(propertyList[1])
     width = float(propertyList[2])
 
-    # print the extracted values
-    print(f"\tYoung's Modulus: {youngsModulus}")
-    print(f"\tHeight: {height}")
-    print(f"\tWidth: {width}\n")
+    # print the extracted values to log
+    logOut.info(f"\tYoung's Modulus: {youngsModulus}")
+    logOut.info(f"\tHeight: {height}")
+    logOut.info(f"\tWidth: {width}\n")
 
     # return the extracted values
     return youngsModulus, height, width
 
 # read and return kinematic constraints
 def readConstraints(constraints : list[str]) -> tuple[int, list[int]]:
-    print("Parsing constraints...")
+    logOut.info("Parsing constraints...")
 
     # strip each line
     constraints = [line.strip() for line in constraints]
@@ -116,16 +140,16 @@ def readConstraints(constraints : list[str]) -> tuple[int, list[int]]:
     constraintList = constraints[1].split()
     zeroDofList = list(map(int, constraintList))
 
-    # print the extracted values
-    print(f"\tNumber of constraints: {numConstraints}")
-    print(f"\tZeroed DOFs: {zeroDofList}\n")
+    # print the extracted values to log
+    logOut.info(f"\tNumber of constraints: {numConstraints}")
+    logOut.info(f"\tZeroed DOFs: {zeroDofList}\n")
 
     # return the extracted values
     return numConstraints, zeroDofList
 
 # read and return point loads
 def readLoads(loads : list[str]) -> tuple[int, list[tuple[int, float]]]:
-    print("Parsing point loads...")
+    logOut.info("Parsing point loads...")
 
     # strip each line
     loads = [line.strip() for line in loads]
@@ -140,9 +164,9 @@ def readLoads(loads : list[str]) -> tuple[int, list[tuple[int, float]]]:
         loadMagnitude = float(loadList[1])
         loadCoord.append((dof, loadMagnitude))
     
-    # print the extracted values
-    print(f"\tNumber of point loads: {numPointLoads}")
-    print(f"\tPoint load coordinates (by DoF): {loadCoord}\n")
+    # print the extracted values to log
+    logOut.info(f"\tNumber of point loads: {numPointLoads}")
+    logOut.info(f"\tPoint load coordinates (by DoF): {loadCoord}\n")
 
     # return the extracted values
     return numPointLoads, loadCoord
@@ -151,11 +175,14 @@ def readLoads(loads : list[str]) -> tuple[int, list[tuple[int, float]]]:
 if __name__ == "__main__":
     splash()
     
+    # setup a logger to write to console and output file simultaneously
+    logOut = setupLogging()
+    
     # read in CLI inputs
     # if none given, use default input file
     args = readCLI()
     filename = args.input if args.input else "input.txt"
-    print(f"Reading input file: {filename}\n")
+    logOut.info(f"Reading input file: {filename}\n")
 
     # open and parse input file based on pre-defined syntax
     with open(filename, "r") as file:
