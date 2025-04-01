@@ -63,7 +63,7 @@ def setupLogging() -> logging.Logger:
     return logger
 
 # read, define, return mesh data
-def readMesh(meshData : list[str], connectivity : list[str]) -> tuple[int, int, list[tuple[int, float]], list[tuple[int, int, int]]]:
+def readMesh(meshData : list[str], connectivity : list[str]) -> tuple[int, int, dict[int, float], list[tuple[int, int, int]]]:
     logOut.info("Parsing mesh data...")
 
     # strip each line
@@ -74,13 +74,13 @@ def readMesh(meshData : list[str], connectivity : list[str]) -> tuple[int, int, 
     # line 1 is the number of nodes and elements
     numNodes, numElements = tuple(map(int, meshData[0].split()))
     # lines 2-end are the coordinates of each node
-    nodeCoord = []
+    nodeCoord = {}
     for line in meshData[1:]:
         # split each line by whitespace
         node = line.split()
         nodeNum = int(node[0])
         nodePosition = float(node[1])
-        nodeCoord.append((nodeNum, nodePosition))
+        nodeCoord[nodeNum] = nodePosition
 
     # then connectivity
     # for each line, split by whitespace and gather into integer tuples
@@ -185,7 +185,7 @@ def imposeConstraints():
 
 # given beam parameters, geometry, connectivity, assemble the global stiffness
 # matrix from the local stiffness matrices of each element
-def assembleGlobalStiffnessMatrix():
+def assembleGlobalStiffnessMatrix() -> np.ndarray:
     # in order to calculate the global stiffness matrix, loop over each element
     # and calculate the local stiffness matrix.
     # then, after calculation of each local stiffness matrix, append values
@@ -239,3 +239,9 @@ if __name__ == "__main__":
     youngsModulus, height, width = readProperties(properties)
     numConstraints, zeroDofList = readConstraints(constraints)
     numPointLoads, loadCoord = readLoads(loads)
+
+    # before global assembly, calculate 2nd moment of area
+    # since we assume rectangular cross-section and constant cross-section
+    # across the beam, this value is constant and used for each element
+    I = (width*height**3)/12
+    logOut.info(f"2nd Moment of Area for Rectangular Cross-Section: {I}\n")
