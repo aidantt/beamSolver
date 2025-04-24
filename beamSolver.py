@@ -22,6 +22,7 @@
 
 # import necessary libraries
 import numpy as np # for math, matrix operations, inverse matrices
+np.set_printoptions(precision=6, suppress=True, linewidth=200) # set numpy print options
 import argparse # for command line arguments
 import logging # for logging functionality
 
